@@ -1,0 +1,54 @@
+name: Docker (vwfix)
+
+# Builds 0.319.1 + VW EU Data Act fixes and publishes it to
+# ghcr.io/<owner>/evcc:0.319.1-vwfix
+
+on:
+  push:
+    branches: [vw-eudataact-fix]
+  workflow_dispatch:
+
+jobs:
+  docker:
+    name: Build and push to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/evcc" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: RELEASE=1
+          tags: |
+            ${{ steps.img.outputs.name }}:0.319.1-vwfix
+            ${{ steps.img.outputs.name }}:vwfix
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
